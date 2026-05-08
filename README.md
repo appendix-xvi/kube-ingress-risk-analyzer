@@ -1,116 +1,116 @@
-# Kubernetes Ingress Risk Analyzer
+# kube-ingress-risk-analyzer
 
-A Kubernetes analysis tool concept for reviewing Ingress resources and identifying routing, exposure, and configuration risks before they cause production issues.
+`kube-ingress-risk-analyzer` is a production-style DevOps portfolio CLI project that inspects Kubernetes Ingress resources and highlights routing risks before deployment.
 
-The goal of this repository is to provide a practical DevOps/SRE utility that helps inspect Kubernetes Ingress definitions and produce a readable risk summary.
+## Features
 
-## Overview
+- Read ingress definitions from:
+  - `kubectl get ingress -A -o json` file export
+  - Live cluster via `kubectl` and kubeconfig context
+- Extracts:
+  - namespace
+  - ingress name
+  - ingress class
+  - host
+  - paths
+  - backend service
+  - `appgw.ingress.kubernetes.io/rule-priority` annotation
+- Detects routing risks:
+  - duplicate hosts across namespaces
+  - wildcard host conflicts (`*.example.com` vs `app.example.com`)
+  - missing Application Gateway rule priority
+  - same host with overlapping paths
+  - catch-all `/` path that may shadow specific paths
+- Output formats:
+  - terminal table
+  - JSON report
+  - Markdown report (CI/CD summary friendly)
 
-Kubernetes Ingress configuration can become difficult to review as environments grow. Host rules, wildcard domains, TLS settings, annotations, path matching, and ingress controller behavior can create unexpected routing or exposure risks.
-
-This project is intended to analyze Ingress resources and highlight issues such as:
-
-- Wildcard host usage
-- Missing TLS configuration
-- Conflicting host rules
-- Broad path matching
-- Risky annotations
-- Ingress class mismatch
-- Duplicate hosts across namespaces
-- External exposure indicators
-
-## Target Use Cases
-
-- Pre-deployment review of Ingress manifests
-- Cluster audit for risky routing rules
-- CI/CD validation before applying Kubernetes changes
-- Troubleshooting route conflicts
-- Documenting ingress exposure across namespaces
-
-## Suggested Input Sources
-
-The analyzer can support one or more input modes:
-
-```bash
-kubectl get ingress -A -o json
-```
-
-```bash
-kubectl get ingress -A -o yaml
-```
-
-```bash
-./manifests/**/*.yaml
-```
-
-## Example Output
-
-```text
-Risk Summary
-------------
-Total ingress resources: 24
-High risk: 2
-Medium risk: 5
-Low risk: 8
-
-Findings
---------
-[HIGH] wildcard host detected: *.example.internal
-[HIGH] duplicate host across namespaces: api.example.internal
-[MEDIUM] TLS not configured for host: admin.example.internal
-[LOW] ingress class not explicitly defined
-```
-
-## Suggested Repository Structure
+## Project structure
 
 ```text
 kube-ingress-risk-analyzer/
-├── README.md
-├── src/
+├── .github/workflows/ci.yml
+├── kube_ingress_risk_analyzer/
+│   ├── analyzer.py
+│   ├── cli.py
+│   ├── models.py
+│   ├── parser.py
+│   └── reporters.py
+├── samples/
+│   └── ingress.json
 ├── tests/
-├── examples/
-│   ├── ingress.json
-│   └── ingress.yaml
-├── docs/
-└── scripts/
+│   └── test_analyzer.py
+├── Dockerfile
+├── pyproject.toml
+└── README.md
 ```
 
-## Analysis Rules
+## Requirements
 
-| Rule | Risk |
-|---|---|
-| Wildcard host | High |
-| Duplicate host across namespaces | High |
-| Missing TLS on externally exposed host | High |
-| Broad catch-all path | Medium |
-| Missing ingress class | Medium |
-| Risky ingress controller annotations | Medium |
-| Missing owner or service metadata | Low |
+- Python 3.12+
+- `kubectl` (for live mode)
 
-## Validation Checklist
+## Installation
 
-A useful analyzer should confirm:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+```
 
-- It parses Kubernetes Ingress JSON and YAML correctly
-- It supports multi-namespace input
-- It detects wildcard and duplicate hosts
-- It separates high, medium, and low risk findings
-- It exits non-zero when high-risk findings are detected in CI mode
-- It produces readable output for humans and structured output for automation
+## Usage examples
 
-## Production Considerations
+Analyze from file (table output by default):
 
-Before using this against a real cluster, review:
+```bash
+kube-ingress-risk-analyzer analyze --file samples/ingress.json
+```
 
-- Cluster access permissions
-- Namespace scope
-- Sensitive hostname handling
-- CI/CD failure threshold
-- Controller-specific annotation rules
-- Report retention and sharing policy
+Analyze from file and export markdown:
 
-## Notes
+```bash
+kube-ingress-risk-analyzer analyze --file samples/ingress.json --output markdown --out-file report.md
+```
 
-- This repository is intended as a DevOps/SRE utility project.
-- Use sanitized example manifests for public demos.
-- Avoid committing internal domain names, private service names, or production routing data.
+Analyze from live cluster using specific context:
+
+```bash
+kube-ingress-risk-analyzer analyze --live --context my-cluster --output json
+```
+
+Fail CI when high-risk findings exist:
+
+```bash
+kube-ingress-risk-analyzer analyze --file samples/ingress.json --fail-on high
+```
+
+This command exits with status code `2` when findings match or exceed the requested severity threshold.
+
+## How to export source data from cluster
+
+```bash
+kubectl get ingress -A -o json > ingress.json
+kube-ingress-risk-analyzer analyze --file ingress.json --output markdown
+```
+
+## Development
+
+```bash
+ruff check .
+pytest -q
+```
+
+## Docker
+
+Build:
+
+```bash
+docker build -t kube-ingress-risk-analyzer:latest .
+```
+
+Run against a local file mounted into container:
+
+```bash
+docker run --rm -v "$PWD/samples:/data" kube-ingress-risk-analyzer:latest analyze --file /data/ingress.json --output json
+```

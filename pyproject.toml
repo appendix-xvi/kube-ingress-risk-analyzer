@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kube-ingress-risk-analyzer"
+version = "0.1.0"
+description = "CLI tool to analyze Kubernetes Ingress routing risks before deployment"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "DevOps Portfolio" }]
+dependencies = [
+  "pydantic>=2.7,<3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+kube-ingress-risk-analyzer = "kube_ingress_risk_analyzer.cli:main"
+
+[tool.setuptools]
+packages = ["kube_ingress_risk_analyzer"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
