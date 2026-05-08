@@ -1,116 +1,104 @@
 # kube-ingress-risk-analyzer
 
-`kube-ingress-risk-analyzer` is a production-style DevOps portfolio CLI project that inspects Kubernetes Ingress resources and highlights routing risks before deployment.
+Work-in-progress DevOps portfolio CLI project for inspecting Kubernetes Ingress resources and identifying routing risks before deployment.
 
-## Features
+This is a strong project idea, but it should not be presented as a completed CLI until the Python package, tests, sample input, and CI workflow are committed.
 
-- Read ingress definitions from:
-  - `kubectl get ingress -A -o json` file export
-  - Live cluster via `kubectl` and kubeconfig context
-- Extracts:
-  - namespace
-  - ingress name
-  - ingress class
-  - host
-  - paths
-  - backend service
-  - `appgw.ingress.kubernetes.io/rule-priority` annotation
-- Detects routing risks:
-  - duplicate hosts across namespaces
-  - wildcard host conflicts (`*.example.com` vs `app.example.com`)
-  - missing Application Gateway rule priority
-  - same host with overlapping paths
-  - catch-all `/` path that may shadow specific paths
-- Output formats:
-  - terminal table
-  - JSON report
-  - Markdown report (CI/CD summary friendly)
+## Problem this project targets
 
-## Project structure
+Ingress issues are easy to miss during review, especially when multiple teams share the same Kubernetes cluster or Application Gateway / ingress controller.
+
+The analyzer is intended to catch risks such as:
+
+- Duplicate hosts across namespaces
+- Wildcard host conflicts such as `*.example.com` vs `app.example.com`
+- Missing `appgw.ingress.kubernetes.io/rule-priority` annotation
+- Same host with overlapping paths
+- Catch-all `/` paths that may shadow more specific routes
+
+## Intended input sources
 
 ```text
-kube-ingress-risk-analyzer/
-├── .github/workflows/ci.yml
-├── kube_ingress_risk_analyzer/
-│   ├── analyzer.py
-│   ├── cli.py
-│   ├── models.py
-│   ├── parser.py
-│   └── reporters.py
-├── samples/
-│   └── ingress.json
-├── tests/
-│   └── test_analyzer.py
-├── Dockerfile
-├── pyproject.toml
-└── README.md
+kubectl get ingress -A -o json > ingress.json
 ```
 
-## Requirements
+Planned modes:
 
-- Python 3.12+
-- `kubectl` (for live mode)
-
-## Installation
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .[dev]
+```text
+File mode: analyze an exported ingress JSON file
+Live mode: call kubectl using the selected kubeconfig context
 ```
 
-## Usage examples
+## Planned output formats
 
-Analyze from file (table output by default):
+```text
+terminal table
+JSON report
+Markdown report for CI/CD summaries
+```
+
+## Current repository status
+
+```text
+Status: work in progress
+Ready to showcase: no
+```
+
+## Required files before showcase
+
+```text
+kube_ingress_risk_analyzer/analyzer.py
+kube_ingress_risk_analyzer/cli.py
+kube_ingress_risk_analyzer/models.py
+kube_ingress_risk_analyzer/parser.py
+kube_ingress_risk_analyzer/reporters.py
+samples/ingress.json
+tests/test_analyzer.py
+Dockerfile
+pyproject.toml
+.github/workflows/ci.yml
+README.md
+```
+
+Do not claim installation or CLI commands work until these files are committed and tested.
+
+## Intended CLI examples
+
+Analyze from a file:
 
 ```bash
 kube-ingress-risk-analyzer analyze --file samples/ingress.json
 ```
 
-Analyze from file and export markdown:
+Export a Markdown report:
 
 ```bash
-kube-ingress-risk-analyzer analyze --file samples/ingress.json --output markdown --out-file report.md
-```
-
-Analyze from live cluster using specific context:
-
-```bash
-kube-ingress-risk-analyzer analyze --live --context my-cluster --output json
+kube-ingress-risk-analyzer analyze \
+  --file samples/ingress.json \
+  --output markdown \
+  --out-file report.md
 ```
 
 Fail CI when high-risk findings exist:
 
 ```bash
-kube-ingress-risk-analyzer analyze --file samples/ingress.json --fail-on high
+kube-ingress-risk-analyzer analyze \
+  --file samples/ingress.json \
+  --fail-on high
 ```
 
-This command exits with status code `2` when findings match or exceed the requested severity threshold.
+## Showcase readiness checklist
 
-## How to export source data from cluster
+Before publishing this as a finished portfolio project, verify:
 
-```bash
-kubectl get ingress -A -o json > ingress.json
-kube-ingress-risk-analyzer analyze --file ingress.json --output markdown
-```
+- `pip install -e .[dev]` works.
+- `pytest -q` passes.
+- `ruff check .` passes.
+- Sample input includes duplicate host and wildcard conflict cases.
+- Markdown report output is committed as an example.
+- Docker build works.
+- README commands match actual CLI behavior.
 
-## Development
+## License
 
-```bash
-ruff check .
-pytest -q
-```
-
-## Docker
-
-Build:
-
-```bash
-docker build -t kube-ingress-risk-analyzer:latest .
-```
-
-Run against a local file mounted into container:
-
-```bash
-docker run --rm -v "$PWD/samples:/data" kube-ingress-risk-analyzer:latest analyze --file /data/ingress.json --output json
-```
+MIT
